@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace App;
 
-use App\Exception\{
-    ClassNotImplementAbstractionException,
+use App\Exception\{ClassNotImplementAbstractionException,
     EntryNotFoundExceptionInterface,
     ImplementationNotFoundException,
+    InvalidEntryValueException,
     NullEntryException,
     InvalidSingletonException
 };
@@ -48,7 +48,7 @@ final class Container implements ContainerInterface
     public function get($id)
     {
         if (!$this->has($id)) {
-            throw new EntryNotFoundExceptionInterface();
+            throw new EntryNotFoundExceptionInterface($id);
         }
 
         $entryService = $this->getEntryServiceInstance($id);
@@ -100,14 +100,47 @@ final class Container implements ContainerInterface
      *
      * @param string $id
      * @param mixed $value
-     * @param bool $isSingleton
      * @return Container
      * @throws ClassNotImplementAbstractionException
      * @throws ImplementationNotFoundException
      * @throws InvalidSingletonException
      * @throws NullEntryException
      */
-    public function bind(string $id, $value, bool $isSingleton = false): self
+    public function bind(string $id, $value): self
+    {
+        $entryService = EntryServiceFactory::create($id, $value);
+
+        if ($entryService->isValueNull()) {
+            throw new NullEntryException();
+        }
+
+        if ($entryService->isValueObject()) {
+            return $this->singleton($id, $value);
+        }
+
+        if ($entryService->isIdAbstraction()) {
+            if (!$entryService->isImplementationForAbstraction()) {
+                throw new ImplementationNotFoundException($entryService->getEntry()->getId());
+            }
+        }
+
+        $this->addEntry($id, $value);
+
+        return $this;
+    }
+
+    /**
+     * Bind singleton to container
+     *
+     * @param string $id
+     * @param string|object $value
+     * @return Container
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidSingletonException
+     * @throws NullEntryException
+     */
+    public function singleton(string $id, $value): self
     {
         $entryService = EntryServiceFactory::create($id, $value);
 
@@ -121,14 +154,10 @@ final class Container implements ContainerInterface
             }
         }
 
-        if ($isSingleton) {
-            if ($entryService->isValueInstantiable() || is_object($entryService->getEntry()->getValue())) {
-                $this->addSingleton($id, $value);
-            } else {
-                throw new InvalidSingletonException();
-            }
+        if ($entryService->isValueInstantiable() || is_object($entryService->getEntry()->getValue())) {
+            $this->addSingleton($id, $value);
         } else {
-            $this->addEntry($id, $value);
+            throw new InvalidSingletonException();
         }
 
         return $this;

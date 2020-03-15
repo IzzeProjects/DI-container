@@ -8,9 +8,15 @@ use Psr\Container\NotFoundExceptionInterface;
 /**
  * Class EntryNotFoundExceptionInterface
  * @package App\Exception
- * @todo Add message
  */
 class EntryNotFoundExceptionInterface extends \Exception implements NotFoundExceptionInterface
 {
-
+    public function __construct(string $id)
+    {
+        parent::__construct(
+            'Entry with id \'' . $id . '\' not found',
+            500,
+            null
+        );
+    }
 }

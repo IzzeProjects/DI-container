@@ -4,15 +4,15 @@ declare(strict_types=1);
 namespace App\Exception;
 
 /**
- * Class InvalidSingletonException
+ * Class InvalidEntryValueException
  * @package App\Exception
  */
-class InvalidSingletonException extends \Exception
+class InvalidEntryValueException extends \Exception
 {
     public function __construct()
     {
         parent::__construct(
-            'Singleton must be a instantiable class',
+            'Entry value is object. A object is singleton in container - use ContainerInterface::singleton',
             500,
             null);
     }

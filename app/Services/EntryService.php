@@ -57,6 +57,16 @@ class EntryService
     }
 
     /**
+     * Check if entry value is object
+     *
+     * @return bool
+     */
+    public function isValueObject()
+    {
+        return is_object($this->entry->getValue());
+    }
+
+    /**
      * Check if entry value is abstraction (interface ot abstract class)
      *
      * @return bool
@@ -128,12 +138,14 @@ class EntryService
      */
     public function isImplementationForAbstraction(): bool
     {
-        if (!$this->isIdAbstraction() || !$this->isValueInstantiable()) {
+        if (!$this->isIdAbstraction() || (!$this->isValueInstantiable() && !$this->isValueObject())) {
             return false;
         }
 
         $abstraction = $this->getIdReflectionClass();
         $implementationClass = $this->getValueReflectionClass();
+
+        var_dump($implementationClass);
 
         if ($abstraction->isAbstract()) {
             if ($implementationClass->isSubclassOf($abstraction->getName())) {
