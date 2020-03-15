@@ -9,11 +9,19 @@
         }
     ],
     "require": {
+        "php": ">=7.4",
         "psr/container": "*"
     },
     "autoload": {
         "psr-4": {
-            "App\\": "app/"
+            "DIContainer\\": "src/"
         }
+    },
+    "require-dev": {
+        "roave/security-advisories": "dev-master",
+        "phpunit/phpunit": "*"
+    },
+    "scripts": {
+        "tests": "vendor/bin/phpunit --colors=auto --do-not-cache-result"
     }
 }
