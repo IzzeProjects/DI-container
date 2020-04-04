@@ -7,7 +7,7 @@ use DIContainer\Container;
 use DIContainer\ContainerInterface;
 use DIContainer\Exception\ClassNotImplementAbstractionException;
 use DIContainer\Exception\ImplementationNotFoundException;
-use DIContainer\Exception\InvalidSingletonException;
+use DIContainer\Exception\InvalidEntryValueException;
 use DIContainer\Exception\NullEntryException;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\NotFoundExceptionInterface;
@@ -59,32 +59,14 @@ class SimpleEntry
  */
 class ContainerTest extends TestCase
 {
-    public function testNewInstance()
+    public function testNewInstance(): void
     {
         $container = $this->getContainerInstance();
 
         $this->assertInstanceOf(Container::class, $container);
     }
 
-    /**
-     * @return ContainerInterface
-     */
-    public function testBindPrimitives(): ContainerInterface
-    {
-        $container = $this->getContainerInstance();
-        $container->bind('array', [1, 2, 3]);
-        $container->bind('float', 20.20);
-        $container->bind('int', 123);
-        $container->bind('string', 'string');
-        $container->bind('bool', true);
-        $container->bind('object', new \stdClass());
-
-        $this->assertNull(null);
-
-        return $container;
-    }
-
-    public function testGetInvalidId()
+    public function testGetInvalidId(): void
     {
         $this->expectException(NotFoundExceptionInterface::class);
 
@@ -92,27 +74,47 @@ class ContainerTest extends TestCase
         $container->get('string');
     }
 
-
     /**
-     * @depends testBindPrimitives
-     * @param ContainerInterface $container
+     * @return ContainerInterface
+     * @throws NullEntryException
+     * @throws InvalidEntryValueException
      */
-    public function testGetPrimitives(ContainerInterface $container)
+    public function testBindScalar(): ContainerInterface
     {
-        $this->assertIsArray($container->get('array'));
-        $this->assertIsFloat($container->get('float'));
-        $this->assertIsInt($container->get('int'));
-        $this->assertIsString($container->get('string'));
-        $this->assertIsBool($container->get('bool'));
-        $this->assertIsObject($container->get('object'));
+        $container = $this->getContainerInstance();
+
+        $container->bindScalar('int', 111);
+        $container->bindScalar('float', 20.20);
+        $container->bindScalar('bool', true);
+        $container->bindScalar('string', 'string');
+
+        $this->assertNull(null);
+
+        return $container;
     }
 
-    public function testBindNull()
+    /**
+     * @depends testBindScalar
+     * @param ContainerInterface $container
+     */
+    public function testGetPrimitives(ContainerInterface $container): void
+    {
+        $this->assertIsInt($container->get('int'));
+        $this->assertIsFloat($container->get('float'));
+        $this->assertIsString($container->get('string'));
+        $this->assertIsBool($container->get('bool'));
+    }
+
+    /**
+     * @throws InvalidEntryValueException
+     * @throws NullEntryException
+     */
+    public function testBindNull(): void
     {
         $this->expectException(NullEntryException::class);
 
         $container = $this->getContainerInstance();
-        $container->bind('null', null);
+        $container->bindScalar('null', null);
     }
 
     /**
@@ -121,7 +123,7 @@ class ContainerTest extends TestCase
     public function testBindClosure(): ContainerInterface
     {
         $container = $this->getContainerInstance();
-        $container->bind('closure', function (ContainerInterface $container) {
+        $container->bindClosure('closure', function (ContainerInterface $container) {
             return $container;
         });
         $this->assertNull(null);
@@ -133,27 +135,36 @@ class ContainerTest extends TestCase
      * @depends testBindClosure
      * @param ContainerInterface $container
      */
-    public function testGetClosure(ContainerInterface $container)
+    public function testGetClosure(ContainerInterface $container): void
     {
         $this->assertInstanceOf(ContainerInterface::class, $container->get('closure'));
     }
 
-    public function testGetResolveDependenciesUnresolvable()
+    /**
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidEntryValueException
+     */
+    public function testGetResolveDependenciesUnresolvable(): void
     {
         $this->expectException(ImplementationNotFoundException::class);
 
         $container = $this->getContainerInstance();
-        $container->bind('resolve', EntryResolve::class);
+        $container->bindClass('resolve', EntryResolve::class);
         $container->get('resolve');
     }
 
-
-    public function testGetResolveDependenciesValid()
+    /**
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidEntryValueException
+     */
+    public function testGetResolveDependenciesValid(): void
     {
         $container = $this->getContainerInstance();
-        $container->bind(IdAbstract::class, Implementation::class);
-        $container->bind(IdInterface::class, Implementation::class);
-        $container->bind('resolve', EntryResolve::class);
+        $container->bindClass(IdAbstract::class, Implementation::class);
+        $container->bindClass(IdInterface::class, Implementation::class);
+        $container->bindClass('resolve', EntryResolve::class);
         $container->get('resolve');
 
         /** @var EntryResolve $resolved */
@@ -162,26 +173,21 @@ class ContainerTest extends TestCase
         $this->assertInstanceOf(IdAbstract::class, $resolved->idA);
         $this->assertInstanceOf(IdInterface::class, $resolved->idI);
         $this->assertInstanceOf(SimpleEntry::class, $resolved->idA->simpleEntry);
-
         $this->assertInstanceOf(EntryResolve::class, $container->get('resolve'));
-    }
-
-    public function testBindResource()
-    {
-        $container = $this->getContainerInstance();
-        $stdin = fopen('php://stdin', 'r');
-        $container->bind('id', $stdin);
-        $this->assertNull(null);
     }
 
     /**
      * @return ContainerInterface
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidEntryValueException
+     * @throws NullEntryException
      */
     public function testBindBindSingletonValid(): ContainerInterface
     {
         $container = $this->getContainerInstance();
-        $container->singleton('singleton', new Singleton());
-        $container->singleton('singleton', Singleton::class);
+        $container->bindSingleton('singleton', new Singleton());
+        $container->bindSingleton('singleton', Singleton::class);
 
         $this->assertNull(null);
 
@@ -192,7 +198,7 @@ class ContainerTest extends TestCase
      * @depends testBindBindSingletonValid
      * @param ContainerInterface $container
      */
-    public function testGetSingleton(ContainerInterface $container)
+    public function testGetSingleton(ContainerInterface $container): void
     {
         $singleton = $container->get('singleton');
         $singleton1 = $container->get('singleton');
@@ -200,22 +206,32 @@ class ContainerTest extends TestCase
         $this->assertEquals(spl_object_id($singleton), spl_object_id($singleton1));
     }
 
-    public function testBindSingletonInvalid()
+    /**
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidEntryValueException
+     * @throws NullEntryException
+     */
+    public function testBindSingletonInvalid(): void
     {
-        $this->expectException(InvalidSingletonException::class);
+        $this->expectException(InvalidEntryValueException::class);
 
         $container = $this->getContainerInstance();
-        $container->singleton('singleton', 'string');
+        $container->bindSingleton('singleton', 'string');
     }
 
     /**
      * @return ContainerInterface
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidEntryValueException
+     * @throws NullEntryException
      */
     public function testSingletonAbstractionAndImplementationValid(): ContainerInterface
     {
         $container = $this->getContainerInstance();
-        $container->singleton(IdAbstract::class, Implementation::class);
-        $container->singleton(IdInterface::class, Implementation::class);
+        $container->bindSingleton(IdAbstract::class, Implementation::class);
+        $container->bindSingleton(IdInterface::class, Implementation::class);
 
         $this->assertNull(null);
 
@@ -227,7 +243,7 @@ class ContainerTest extends TestCase
      *
      * @param ContainerInterface $container
      */
-    public function testGetSingletonAbstractionAndImplementation(ContainerInterface $container)
+    public function testGetSingletonAbstractionAndImplementation(ContainerInterface $container): void
     {
         $idAbstract1 = $container->get(IdAbstract::class);
         $idAbstract2 = $container->get(IdAbstract::class);
@@ -244,12 +260,15 @@ class ContainerTest extends TestCase
 
     /**
      * @return ContainerInterface
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidEntryValueException
      */
     public function testBindAbstractionAndImplementationValid(): ContainerInterface
     {
         $container = $this->getContainerInstance();
-        $container->bind(IdAbstract::class, Implementation::class);
-        $container->bind(IdInterface::class, Implementation::class);
+        $container->bindClass(IdAbstract::class, Implementation::class);
+        $container->bindClass(IdInterface::class, Implementation::class);
 
         $this->assertNull(null);
 
@@ -261,40 +280,58 @@ class ContainerTest extends TestCase
      *
      * @param ContainerInterface $container
      */
-    public function testGetAbstractionAndImplementation(ContainerInterface $container)
+    public function testGetAbstractionAndImplementation(ContainerInterface $container): void
     {
         $this->assertInstanceOf(IdAbstract::class, $container->get(IdAbstract::class));
         $this->assertInstanceOf(IdInterface::class, $container->get(IdInterface::class));
     }
 
-    public function testBindAbstractionAndImplementationInvalid()
+    /**
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidEntryValueException
+     */
+    public function testBindAbstractionAndImplementationInvalid(): void
     {
-        $this->expectException(ImplementationNotFoundException::class);
+        $this->expectException(InvalidEntryValueException::class);
 
         $container = $this->getContainerInstance();
-        $container->bind(IdAbstract::class, 'string');
+        $container->bindClass(IdAbstract::class, 'string');
     }
 
-    public function testBindAbstractionAndImplementationInvalidImplementation()
+    /**
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidEntryValueException
+     */
+    public function testBindAbstractionAndImplementationInvalidImplementation(): void
     {
         $this->expectException(ClassNotImplementAbstractionException::class);
 
         $container = $this->getContainerInstance();
-        $container->bind(IdAbstract::class, \stdClass::class);
+        $container->bindClass(IdAbstract::class, \stdClass::class);
     }
 
-    public function testHasValid()
+    /**
+     * @throws InvalidEntryValueException
+     * @throws NullEntryException
+     */
+    public function testHasValid(): void
     {
         $container = $this->getContainerInstance();
-        $container->bind('id', 'string');
+        $container->bindScalar('id', 'string');
 
         $this->assertTrue($container->has('id'));
     }
 
-    public function testHasInvalid()
+    /**
+     * @throws InvalidEntryValueException
+     * @throws NullEntryException
+     */
+    public function testHasInvalid(): void
     {
         $container = $this->getContainerInstance();
-        $container->bind('id', 'string');
+        $container->bindScalar('id', 'string');
 
         $this->assertFalse($container->has('string'));
     }

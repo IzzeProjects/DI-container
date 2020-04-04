@@ -3,8 +3,11 @@ declare(strict_types=1);
 
 namespace DIContainer\Traits;
 
-use DIContainer\Exception\ImplementationNotFoundException;
-use DIContainer\Exception\NotInstantiableException;
+use DIContainer\Entry;
+use DIContainer\Exception\{
+    ImplementationNotFoundException,
+    NotInstantiableException
+};
 use Psr\Container\ContainerInterface;
 
 /**
@@ -34,7 +37,7 @@ trait ResolvingClassDependencies
 
         $constructor = $entry->getConstructor();
 
-        if (is_null($constructor)) {
+        if ($constructor === null) {
             return $entry->newInstance();
         }
 
@@ -57,18 +60,22 @@ trait ResolvingClassDependencies
      */
     private function resolveImplementation(\ReflectionClass $implementation)
     {
-        $singleton = $this->singletons[$implementation->getName()] ?? null;
-        if (!empty($singleton)) {
-            if (is_object($singleton)) {
-                return $singleton;
+        /** @var Entry $entry */
+        $entry = $this->entries[$implementation->getName()];
+
+        if ($entry->isSingleton()) {
+            if (is_object($entry->getValue())) {
+                return $entry->getValue();
             }
 
-            return $this->singletons[$implementation->getName()] = $this->resolveEntryClassDependencies(new \ReflectionClass($singleton));
+            $entry->setValue($this->resolveEntryClassDependencies(new \ReflectionClass($entry->getValue())));
+
+            return $entry->getValue();
         }
 
         $entry = $this->entries[$implementation->getName()];
 
-        return $this->resolveEntryClassDependencies(new \ReflectionClass($entry));
+        return $this->resolveEntryClassDependencies(new \ReflectionClass($entry->getValue()));
     }
 
     /**

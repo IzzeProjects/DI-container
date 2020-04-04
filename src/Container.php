@@ -3,17 +3,15 @@ declare(strict_types=1);
 
 namespace DIContainer;
 
-use DIContainer\Exception\{ClassNotImplementAbstractionException,
+use DIContainer\Exception\{
     EntryNotFoundException,
     ImplementationNotFoundException,
-    NullEntryException,
-    InvalidSingletonException
+    InvalidEntryValueException,
 };
 use Psr\Container\{
     ContainerExceptionInterface,
     NotFoundExceptionInterface
 };
-use DIContainer\Factories\EntryServiceFactory;
 use DIContainer\Services\EntryService;
 use DIContainer\Traits\ResolvingClassDependencies;
 
@@ -22,18 +20,23 @@ use DIContainer\Traits\ResolvingClassDependencies;
  *
  * Class Container
  * @package DIContainer
- *
- * @todo Remove ReflectionException
  */
 final class Container implements ContainerInterface
 {
     use ResolvingClassDependencies;
 
-    /** @var array Array of entries. Key of array is identifier of entry, value of array is value of entry */
+    /** @var Entry[] Array of entries */
     private array $entries = [];
 
-    /** @var array Array of singleton. Key of array is identifier of entry, value of array is value of entry */
-    private array $singletons = [];
+    private EntryService $entryService;
+
+    /**
+     * Container constructor.
+     */
+    public function __construct()
+    {
+        $this->entryService = new EntryService();
+    }
 
     /**
      * Finds an entry of the container by its identifier and returns it.
@@ -52,32 +55,33 @@ final class Container implements ContainerInterface
             throw new EntryNotFoundException($id);
         }
 
-        $entryService = $this->getEntryServiceInstance($id);
+        $this->entryService->setEntry($this->entries[$id]);
 
         /**
          * Closures always takes container as argument
          */
-        if ($entryService->isValueClosure()) {
-            $closure = $entryService->getEntry()->getValue();
+        if ($this->entryService->isValueClosure()) {
+            $closure = $this->entryService->getEntry()->getValue();
             return $closure($this);
         }
 
         /**
-         * If entry is instantiable resolve dependencies and return instance
+         * If entry is instantiable resolve dependencies and return an instance
          */
-        if ($entryService->isValueInstantiable()) {
-            $entry = $this->resolveEntryClassDependencies(
-                $entryService->getValueReflectionClass()
+        if ($this->entryService->isValueInstantiable()) {
+            $object = $this->resolveEntryClassDependencies(
+                $this->entryService->getValueReflectionClass()
             );
 
-            if ($entryService->getEntry()->isSingleton()) {
-                $this->singletons[$id] = $entry;
+            if ($this->entryService->getEntry()->isSingleton()) {
+                $entry = $this->entryService->getEntry();
+                $entry->setValue($object);
             }
 
-            return $entry;
+            return $object;
         }
 
-        return $entryService->getEntry()->getValue();
+        return $this->entryService->getEntry()->getValue();
     }
 
     /**
@@ -91,75 +95,96 @@ final class Container implements ContainerInterface
      *
      * @return bool
      */
-    public function has($id)
+    public function has($id): bool
     {
-        return array_key_exists($id, $this->entries) || array_key_exists($id, $this->singletons);
+        return array_key_exists($id, $this->entries);
     }
 
     /**
-     * Bind entry to container
-     *
-     * @param string $id
-     * @param mixed $value
-     * @return Container
-     * @throws ClassNotImplementAbstractionException
-     * @throws ImplementationNotFoundException
-     * @throws InvalidSingletonException
-     * @throws NullEntryException
+     * @inheritDoc
      */
-    public function bind(string $id, $value): self
+    public function bindScalar(string $id, $value): self
     {
-        $entryService = EntryServiceFactory::create($id, $value);
+        $this->entryService->setEntry(new Entry($id, $value));
 
-        if ($entryService->isValueNull()) {
-            throw new NullEntryException();
+        if (!$this->entryService->isValueScalar()) {
+            throw new InvalidEntryValueException('Value must be a scalar value');
         }
 
-        if ($entryService->isValueObject()) {
-            return $this->singleton($id, $value);
-        }
-
-        if ($entryService->isIdAbstraction()) {
-            if (!$entryService->isImplementationForAbstraction()) {
-                throw new ImplementationNotFoundException($entryService->getEntry()->getId());
-            }
-        }
-
-        $this->addEntry($id, $value);
+        $this->addEntry($this->entryService->getEntry());
 
         return $this;
     }
 
     /**
-     * Bind singleton to container
-     *
-     * @param string $id
-     * @param string|object $value
-     * @return Container
-     * @throws ClassNotImplementAbstractionException
-     * @throws ImplementationNotFoundException
-     * @throws InvalidSingletonException
-     * @throws NullEntryException
+     * @inheritDoc
      */
-    public function singleton(string $id, $value): self
+    public function bindArray(string $id, array $value): self
     {
-        $entryService = EntryServiceFactory::create($id, $value);
+        $this->entryService->setEntry(new Entry($id, $value));
 
-        if ($entryService->isValueNull()) {
-            throw new NullEntryException();
+        $this->addEntry($this->entryService->getEntry());
+
+        return $this;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function bindClass(string $id, string $value): self
+    {
+        $this->entryService->setEntry(new Entry($id, $value));
+
+        if (!$this->entryService->isValueInstantiable()) {
+            throw new InvalidEntryValueException('Class must be instantiable');
         }
 
-        if ($entryService->isIdAbstraction()) {
-            if (!$entryService->isImplementationForAbstraction()) {
-                throw new ImplementationNotFoundException($entryService->getEntry()->getId());
-            }
+        if ($this->entryService->isIdAbstraction() && !$this->entryService->isImplementationForAbstraction()) {
+            throw new ImplementationNotFoundException($this->entryService->getEntry()->getId());
         }
 
-        if ($entryService->isValueInstantiable() || is_object($entryService->getEntry()->getValue())) {
-            $this->addSingleton($id, $value);
-        } else {
-            throw new InvalidSingletonException();
+        $this->addEntry($this->entryService->getEntry());
+
+        return $this;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function bindSingleton(string $id, $value): self
+    {
+        $entry = new Entry($id, $value);
+
+        $entry->setIsSingleton(true);
+
+        $this->entryService->setEntry($entry);
+
+        if ($this->entryService->isValueObject()) {
+            $this->addEntry($this->entryService->getEntry());
+            return $this;
         }
+
+        if (!$this->entryService->isValueInstantiable()) {
+            throw new InvalidEntryValueException('Singleton must be instantiable');
+        }
+
+        if ($this->entryService->isIdAbstraction() && !$this->entryService->isImplementationForAbstraction()) {
+            throw new ImplementationNotFoundException($this->entryService->getEntry()->getId());
+        }
+
+        $this->addEntry($this->entryService->getEntry());
+
+        return $this;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function bindClosure(string $id, \Closure $value): self
+    {
+        $this->entryService->setEntry(new Entry($id, $value));
+
+        $this->addEntry($this->entryService->getEntry());
 
         return $this;
     }
@@ -167,39 +192,10 @@ final class Container implements ContainerInterface
     /**
      * Add entry to array
      *
-     * @param string $id
-     * @param mixed $entry
+     * @param Entry $entry
      */
-    private function addEntry(string $id, $entry): void
+    private function addEntry(Entry $entry): void
     {
-        $this->entries[$id] = $entry;
-    }
-
-    /**
-     * Add singleton to array
-     *
-     * @param string $id
-     * @param $singleton
-     */
-    private function addSingleton(string $id, $singleton): void
-    {
-        $this->singletons[$id] = $singleton;
-    }
-
-    /**
-     * Get entry service
-     *
-     * @param string $id
-     * @return EntryService
-     */
-    private function getEntryServiceInstance(string $id)
-    {
-        $singleton = $this->singletons[$id] ?? null;
-
-        if (!is_null($singleton)) {
-            return EntryServiceFactory::create($id, $singleton, true);
-        }
-
-        return EntryServiceFactory::create($id, $this->entries[$id]);
+        $this->entries[$entry->getId()] = $entry;
     }
 }

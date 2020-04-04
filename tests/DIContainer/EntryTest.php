@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace DIContainer\Tests;
 
 use DIContainer\Entry;
+use DIContainer\Exception\NullEntryException;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -12,45 +13,64 @@ use PHPUnit\Framework\TestCase;
  */
 class EntryTest extends TestCase
 {
-    protected Entry $entry;
 
-    protected string $testId = 'testId';
+    protected string $id = 'id';
+    protected string $value = 'value';
 
-    protected string $testValue = 'testValue';
-
-    protected function setUp(): void
+    /**
+     * @return Entry
+     * @throws NullEntryException
+     */
+    public function testNewInstanceValid(): Entry
     {
-        $this->entry = new Entry($this->testId, $this->testValue);
-    }
-
-    public function testNewInstance()
-    {
-        $entry = new Entry('test', 'test entry', true);
+        $entry = new Entry($this->id, $this->value);
 
         $this->assertInstanceOf(Entry::class, $entry);
+
+        return $entry;
+    }
+
+    public function testNewInstanceNullValue(): void
+    {
+        $this->expectException(NullEntryException::class);
+        new Entry('test', null);
     }
 
     /**
-     * @depends testNewInstance
+     * @depends testNewInstanceValid
+     * @param Entry $entry
      */
-    public function testGetId()
+    public function testGetId(Entry $entry): void
     {
-        $this->assertEquals($this->testId, $this->entry->getId());
+        $this->assertEquals($this->id, $entry->getId());
     }
 
     /**
-     * @depends testNewInstance
+     * @depends testNewInstanceValid
+     * @param Entry $entry
      */
-    public function testIsSingleton()
+    public function testIsSingleton(Entry $entry): void
     {
-        $this->assertEquals($this->testValue, $this->entry->getValue());
+        $this->assertFalse($entry->isSingleton());
     }
 
     /**
-     * @depends testNewInstance
+     * @depends testNewInstanceValid
+     * @param Entry $entry
      */
-    public function testGetValue()
+    public function testGetValue(Entry $entry): void
     {
-        $this->assertFalse($this->entry->isSingleton());
+        $this->assertEquals($this->value, $entry->getValue());
+    }
+
+    /**
+     * @depends testNewInstanceValid
+     * @param Entry $entry
+     */
+    public function testSetValue(Entry $entry): void
+    {
+        $entry->setValue('string');
+
+        $this->assertEquals('string', $entry->getValue());
     }
 }
