@@ -13,23 +13,14 @@ use DIContainer\Exception\ClassNotImplementAbstractionException;
  * @package App
  *
  */
-class EntryService
+final class EntryService
 {
     /** @var Entry Entry */
-    private Entry $entry;
+    private ?Entry $entry = null;
 
     private ?\ReflectionClass $idClass = null;
 
     private ?\ReflectionClass $valueClass = null;
-
-    /**
-     * BindEntryService constructor.
-     * @param Entry $entry
-     */
-    public function __construct(Entry $entry)
-    {
-        $this->entry = $entry;
-    }
 
     /**
      * Check if entry value NULL
@@ -38,7 +29,7 @@ class EntryService
      */
     public function isValueNull(): bool
     {
-        return is_null($this->entry->getValue());
+        return $this->entry->getValue() === null;
     }
 
     /**
@@ -50,7 +41,8 @@ class EntryService
     {
         if (is_string($this->entry->getValue()) && class_exists($this->entry->getValue())) {
             $class = $this->getValueReflectionClass();
-            if (!empty($class) && $class->isInstantiable()) {
+
+            if ($class !== null && $class->isInstantiable()) {
                 return true;
             }
         }
@@ -62,7 +54,7 @@ class EntryService
      *
      * @return bool
      */
-    public function isValueObject()
+    public function isValueObject(): bool
     {
         return is_object($this->entry->getValue());
     }
@@ -72,12 +64,12 @@ class EntryService
      *
      * @return bool
      */
-    public function isIdAbstraction()
+    public function isIdAbstraction(): bool
     {
         if (is_string($this->entry->getId())) {
             $class = $this->getIdReflectionClass();
 
-            if (!empty($class) && ($class->isAbstract() || $class->isInterface())) {
+            if ($class !== null && ($class->isAbstract() || $class->isInterface())) {
                 return true;
             }
         }
@@ -90,9 +82,19 @@ class EntryService
      *
      * @return bool
      */
-    public function isValueClosure()
+    public function isValueClosure(): bool
     {
         return $this->entry->getValue() instanceof \Closure;
+    }
+
+    /**
+     * Check if entry value is scalar
+     *
+     * @return bool
+     */
+    public function isValueScalar(): bool
+    {
+        return is_scalar($this->entry->getValue());
     }
 
     /**
@@ -102,7 +104,7 @@ class EntryService
      */
     public function getIdReflectionClass(): ?\ReflectionClass
     {
-        if (!is_null($this->idClass)) {
+        if ($this->idClass !== null) {
             return $this->idClass;
         }
 
@@ -120,7 +122,7 @@ class EntryService
      */
     public function getValueReflectionClass(): ?\ReflectionClass
     {
-        if (!is_null($this->valueClass)) {
+        if ($this->valueClass !== null) {
             return $this->valueClass;
         }
 
@@ -139,13 +141,17 @@ class EntryService
      */
     public function isImplementationForAbstraction(): bool
     {
-        if (!$this->isIdAbstraction() || (!$this->isValueInstantiable() && !$this->isValueObject())) {
-            return false;
-        }
-
         $abstraction = $this->getIdReflectionClass();
 
         $implementationClass = $this->getValueReflectionClass();
+
+        if ($abstraction === null || $implementationClass === null) {
+            return false;
+        }
+
+        if (!$this->isIdAbstraction() || (!$this->isValueInstantiable() && !$this->isValueObject())) {
+            return false;
+        }
 
         if ($abstraction->isAbstract()) {
             if ($implementationClass->isSubclassOf($abstraction->getName())) {

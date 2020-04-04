@@ -4,6 +4,7 @@ namespace DIContainer\Tests\Services;
 
 use DIContainer\Entry;
 use DIContainer\Exception\ClassNotImplementAbstractionException;
+use DIContainer\Exception\NullEntryException;
 use DIContainer\Services\EntryService;
 use PHPUnit\Framework\TestCase;
 
@@ -29,180 +30,207 @@ class Implementation extends IdAbstract implements IdInterface
  */
 class EntryServiceTest extends TestCase
 {
-    public function testNewInstance()
+    protected EntryService $entryService;
+
+    protected function setUp(): void
     {
-        $instance = new EntryService(new Entry('string', new \stdClass()));
-        $this->assertInstanceOf(EntryService::class, $instance);
+        $this->entryService = new EntryService();
     }
 
     /**
      * @throws ClassNotImplementAbstractionException
+     * @throws NullEntryException
      */
-    public function testIsImplementationForAbstractionInvalid()
+    public function testIsImplementationForAbstractionInvalid(): void
     {
         $entry = new Entry(IdInterface::class, 'string');
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertFalse($service->isImplementationForAbstraction());
+        $this->assertFalse($this->entryService->isImplementationForAbstraction());
 
         $entry = new Entry(InstantiableValue::class, IdInterface::class);
-        $service->setEntry($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertFalse($service->isImplementationForAbstraction());
+        $this->assertFalse($this->entryService->isImplementationForAbstraction());
     }
 
     /**
      * @throws ClassNotImplementAbstractionException
+     * @throws NullEntryException
      */
-    public function testIsImplementationForAbstractionNotImplement()
+    public function testIsImplementationForAbstractionNotImplement(): void
     {
         $this->expectException(ClassNotImplementAbstractionException::class);
 
         $entry = new Entry(IdInterface::class, InstantiableValue::class);
-        $service = new EntryService($entry);
-        $service->isImplementationForAbstraction();
+        $this->entryService->setEntry($entry);
+        $this->entryService->isImplementationForAbstraction();
     }
 
     /**
      * @throws ClassNotImplementAbstractionException
+     * @throws NullEntryException
      */
-    public function testIsImplementationForAbstractionValid()
+    public function testIsImplementationForAbstractionValid(): void
     {
 
         $entry = new Entry(IdInterface::class, Implementation::class);
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertTrue($service->isImplementationForAbstraction());
+        $this->assertTrue($this->entryService->isImplementationForAbstraction());
 
         $entry = new Entry(IdAbstract::class, Implementation::class);
-        $service->setEntry($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertTrue($service->isImplementationForAbstraction());
+        $this->assertTrue($this->entryService->isImplementationForAbstraction());
     }
 
-    public function testIsIdAbstractionValid()
+    public function testIsIdAbstractionValid(): void
     {
         $entry = new Entry(IdInterface::class, 'string');
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertTrue($service->isIdAbstraction());
+        $this->assertTrue($this->entryService->isIdAbstraction());
 
         $entry = new Entry(IdAbstract::class, 'string');
-        $service->setEntry($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertTrue($service->isIdAbstraction());
+        $this->assertTrue($this->entryService->isIdAbstraction());
     }
 
-    public function testIsIdAbstractionInvalid()
+    public function testIsIdAbstractionInvalid(): void
     {
         $entry = new Entry('string', 'string');
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertFalse($service->isIdAbstraction());
+        $this->assertFalse($this->entryService->isIdAbstraction());
     }
 
-    public function testIsValueClosureValid()
+    public function testIsValueClosureValid(): void
     {
         $entry = new Entry('string', function () {
         });
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertTrue($service->isValueClosure());
+        $this->assertTrue($this->entryService->isValueClosure());
     }
 
-    public function testIsValueClosureInvalid()
+    public function testIsValueClosureInvalid(): void
     {
         $entry = new Entry('string', 'string');
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertFalse($service->isValueClosure());
+        $this->assertFalse($this->entryService->isValueClosure());
     }
 
-    public function testGetIdReflectionClass()
+    public function testGetIdReflectionClass(): void
     {
         $entry = new Entry(InstantiableValue::class, 'string');
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertInstanceOf(\ReflectionClass::class, $service->getIdReflectionClass());
+        $this->assertInstanceOf(\ReflectionClass::class, $this->entryService->getIdReflectionClass());
     }
 
-    public function testGetIdReflectionClassNull()
+    public function testGetIdReflectionClassNull(): void
     {
         $entry = new Entry('string', 'string');
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertNull($service->getIdReflectionClass());
+        $this->assertNull($this->entryService->getIdReflectionClass());
     }
 
-    public function testGetEntry()
+    public function testGetEntry(): void
     {
         $entry = new Entry('string', InstantiableValue::class);
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertInstanceOf(Entry::class, $service->getEntry());
+        $this->assertInstanceOf(Entry::class, $this->entryService->getEntry());
     }
 
-    public function testIsValueInstantiableValid()
+    public function testIsValueInstantiableValid(): void
     {
         $entry = new Entry('string', InstantiableValue::class);
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertTrue($service->isValueInstantiable());
+        $this->assertTrue($this->entryService->isValueInstantiable());
     }
 
-    public function testIsValueInstantiableInvalid()
+    public function testIsValueInstantiableInvalid(): void
     {
         $entry = new Entry('string', 'string');
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertFalse($service->isValueInstantiable());
+        $this->assertFalse($this->entryService->isValueInstantiable());
     }
 
-    public function testIsValueNullValid()
-    {
-        $entry = new Entry('string', null);
-        $service = new EntryService($entry);
-
-        $this->assertTrue($service->isValueNull());
-    }
-
-    public function testIsValueNullInvalid()
+    /**
+     * @throws NullEntryException
+     */
+    public function testIsValueNullInvalid(): void
     {
         $entry = new Entry('string', 20.209);
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertFalse($service->isValueNull());
+        $this->assertFalse($this->entryService->isValueNull());
     }
 
-    public function testIsValueObjectValid()
+    /**
+     * @throws NullEntryException
+     */
+    public function testIsValueObjectValid(): void
     {
         $entry = new Entry('string', new InstantiableValue());
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertTrue($service->isValueObject());
+        $this->assertTrue($this->entryService->isValueObject());
     }
 
-    public function testIsValueObjectInvalid()
+    public function testIsValueObjectInvalid(): void
     {
         $entry = new Entry('string', 'string');
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertFalse($service->isValueObject());
+        $this->assertFalse($this->entryService->isValueObject());
     }
 
-    public function testGetValueReflectionClass()
+    /**
+     * @throws NullEntryException
+     */
+    public function testIsValueScalarValid(): void
+    {
+        $entry = new Entry('string', 111);
+        $this->entryService->setEntry($entry);
+
+        $this->assertTrue($this->entryService->isValueScalar());
+    }
+
+    /**
+     * @throws NullEntryException
+     */
+    public function testIsValueScalarInvalid(): void
     {
         $entry = new Entry('string', new \stdClass());
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertInstanceOf(\ReflectionClass::class, $service->getValueReflectionClass());
+        $this->assertFalse($this->entryService->isValueScalar());
     }
 
-    public function testGetValueReflectionClassNull()
+    /**
+     * @throws NullEntryException
+     */
+    public function testGetValueReflectionClass(): void
+    {
+        $entry = new Entry('string', new \stdClass());
+        $this->entryService->setEntry($entry);
+
+        $this->assertInstanceOf(\ReflectionClass::class, $this->entryService->getValueReflectionClass());
+    }
+
+    public function testGetValueReflectionClassNull(): void
     {
         $entry = new Entry('string', 'string');
-        $service = new EntryService($entry);
+        $this->entryService->setEntry($entry);
 
-        $this->assertNull($service->getValueReflectionClass());
+        $this->assertNull($this->entryService->getValueReflectionClass());
     }
 }

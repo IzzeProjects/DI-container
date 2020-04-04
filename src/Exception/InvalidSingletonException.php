@@ -3,11 +3,13 @@ declare(strict_types=1);
 
 namespace DIContainer\Exception;
 
+use Psr\Container\ContainerExceptionInterface;
+
 /**
  * Class InvalidSingletonException
  * @package DIContainer\Exception
  */
-class InvalidSingletonException extends \Exception
+class InvalidSingletonException extends \Exception implements ContainerExceptionInterface
 {
     public function __construct()
     {

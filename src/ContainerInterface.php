@@ -3,32 +3,73 @@ declare(strict_types=1);
 
 namespace DIContainer;
 
-use Psr\Container\ContainerInterface as PSRContainerInterface;
+use DIContainer\Exception\{
+    ClassNotImplementAbstractionException,
+    ImplementationNotFoundException,
+    InvalidEntryValueException,
+    NullEntryException
+};
+use Psr\Container\ContainerInterface as PsrContainerInterface;
 
 /**
- * Container interface
- * This interface extends PSR
+ * DI container interface
  *
  * Interface ContainerInterface
  * @package DIContainer
  */
-interface ContainerInterface extends PSRContainerInterface
+interface ContainerInterface extends PsrContainerInterface
 {
     /**
-     * Bind an entry to container
+     * Bind a scalar value to container
      *
-     * @param string $id Singleton identifier
-     * @param mixed $value Any type excluding NULL
-     * @return $this
+     * @param string $id
+     * @param int|float|bool|string $value
+     * @return ContainerInterface
+     * @throws InvalidEntryValueException
+     * @throws NullEntryException
      */
-    public function bind(string $id, $value): self;
+    public function bindScalar(string $id, $value): self;
 
     /**
-     * Bind a singleton to container
+     * Bind an array to container
      *
-     * @param string $id Singleton identifier
+     * @param string $id
+     * @param array $value
+     * @return ContainerInterface
+     */
+    public function bindArray(string $id, array $value): self;
+
+    /**
+     * Bind a class to container
+     *
+     * @param string $id
+     * @param string $value
+     * @return ContainerInterface
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidEntryValueException
+     */
+    public function bindClass(string $id, string $value): self;
+
+    /**
+     * Bind a singleton to
+     *
+     * @param string $id
      * @param string|object $value
+     * @return ContainerInterface
+     * @throws ClassNotImplementAbstractionException
+     * @throws ImplementationNotFoundException
+     * @throws InvalidEntryValueException
+     * @throws NullEntryException
+     */
+    public function bindSingleton(string $id, $value): self;
+
+    /**
+     * Bind a closure to container
+     *
+     * @param string $id
+     * @param \Closure $value
      * @return $this
      */
-    public function singleton(string $id, $value): self;
+    public function bindClosure(string $id, \Closure $value): self;
 }
